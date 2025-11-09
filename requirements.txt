@@ -1,0 +1,24 @@
+# Langchain core
+Langchain
+langchain-core
+lamgchain-expermental
+
+# Huggingface Integration
+langchain-huggingface
+transformers
+huggingface-hub
+
+# Env var management
+python-dotenv
+
+# basic utilities
+numpy
+pandas
+scikit-learn
+sentence-transformers
+hf_xet
+bs4
+streamlit
+request
+pypdf
+
