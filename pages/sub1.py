@@ -1,5 +1,6 @@
 import os
 import re
+from datetime import datetime
 from langchain_huggingface import ChatHuggingFace, HuggingFaceEndpoint
 from langchain_huggingface import HuggingFaceEmbeddings
 from langchain_community.vectorstores import FAISS
@@ -10,6 +11,13 @@ from langchain_core.messages import HumanMessage, AIMessage
 from langchain_core.runnables import RunnablePassthrough
 from dotenv import load_dotenv
 import streamlit as st
+from reportlab.lib.pagesizes import letter
+from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
+from reportlab.lib.units import inch
+from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer, PageBreak
+from reportlab.lib.enums import TA_LEFT, TA_RIGHT
+from reportlab.lib.colors import HexColor
+import io
 
 
 def chat_model():
@@ -33,9 +41,27 @@ def clean_text(text):
     text = re.sub(r'(.)\1{3,}', r'\1', text)
     return text.strip()
 
-def load_and_create_vectordb():
+def load_and_create_vectordb(vectordb_path='vectordb/dbms_faiss'):
     """Load PDF, clean text, create chunks, and build FAISS vector database"""
-    loader = PyPDFLoader(file_path='dbms_tb.pdf')
+    embeddings = get_embeddings()
+    
+    # Check if vector database already exists
+    if os.path.exists(vectordb_path):
+        st.info("📂 Loading existing vector database from disk...")
+        try:
+            vectordb = FAISS.load_local(
+                vectordb_path, 
+                embeddings,
+                allow_dangerous_deserialization=True
+            )
+            st.success("✅ Vector database loaded successfully!")
+            return vectordb
+        except Exception as e:
+            st.warning(f"⚠️ Could not load existing database: {str(e)}. Creating new one...")
+    
+    # Create new vector database if it doesn't exist
+    st.info("🔨 Creating new vector database (this may take a moment)...")
+    loader = PyPDFLoader(file_path='pdfs/dbms_tb.pdf')
     docs = loader.load()
     
     for doc in docs:
@@ -47,10 +73,120 @@ def load_and_create_vectordb():
     )
     chunks = splitter.split_documents(docs)
     
-    embeddings = get_embeddings()
     vectordb = FAISS.from_documents(chunks, embeddings)
     
+    # Save the vector database locally
+    os.makedirs(os.path.dirname(vectordb_path), exist_ok=True)
+    vectordb.save_local(vectordb_path)
+    st.success("✅ Vector database created and saved to disk!")
+    
     return vectordb
+
+def generate_chat_pdf(messages):
+    """Generate a PDF from chat messages"""
+    buffer = io.BytesIO()
+    doc = SimpleDocTemplate(buffer, pagesize=letter,
+                           rightMargin=72, leftMargin=72,
+                           topMargin=72, bottomMargin=18)
+    
+    # Container for the 'Flowable' objects
+    elements = []
+    
+    # Define styles
+    styles = getSampleStyleSheet()
+    
+    # Title style
+    title_style = ParagraphStyle(
+        'CustomTitle',
+        parent=styles['Heading1'],
+        fontSize=24,
+        textColor=HexColor('#1e40af'),
+        spaceAfter=30,
+        alignment=TA_LEFT
+    )
+    
+    # Question style (user)
+    question_style = ParagraphStyle(
+        'Question',
+        parent=styles['Normal'],
+        fontSize=11,
+        textColor=HexColor('#1f2937'),
+        leftIndent=20,
+        rightIndent=20,
+        spaceAfter=6,
+        spaceBefore=12,
+        backColor=HexColor('#dbeafe'),
+        borderPadding=10,
+        borderRadius=5
+    )
+    
+    # Answer style (assistant)
+    answer_style = ParagraphStyle(
+        'Answer',
+        parent=styles['Normal'],
+        fontSize=10,
+        textColor=HexColor('#374151'),
+        leftIndent=20,
+        rightIndent=20,
+        spaceAfter=20,
+        spaceBefore=6,
+        backColor=HexColor('#f3f4f6'),
+        borderPadding=10,
+        borderRadius=5
+    )
+    
+    # Label styles
+    label_style = ParagraphStyle(
+        'Label',
+        parent=styles['Normal'],
+        fontSize=9,
+        textColor=HexColor('#6b7280'),
+        spaceAfter=3
+    )
+    
+    # Add title
+    title = Paragraph("DBMS Chatbot Conversation", title_style)
+    elements.append(title)
+    
+    # Add timestamp
+    timestamp = Paragraph(
+        f"<i>Generated on: {datetime.now().strftime('%B %d, %Y at %I:%M %p')}</i>",
+        label_style
+    )
+    elements.append(timestamp)
+    elements.append(Spacer(1, 0.3*inch))
+    
+    # Add messages
+    for i, message in enumerate(messages, 1):
+        if message["role"] == "user":
+            # Add Q label
+            q_label = Paragraph(f"<b>Question {i//2 + 1}:</b>", label_style)
+            elements.append(q_label)
+            
+            # Add question with HTML escaping
+            question_text = message["content"].replace('&', '&amp;').replace('<', '&lt;').replace('>', '&gt;')
+            question = Paragraph(question_text, question_style)
+            elements.append(question)
+            
+        else:  # assistant
+            # Add A label
+            a_label = Paragraph("<b>Answer:</b>", label_style)
+            elements.append(a_label)
+            
+            # Add answer with HTML escaping
+            answer_text = message["content"].replace('&', '&amp;').replace('<', '&lt;').replace('>', '&gt;')
+            answer = Paragraph(answer_text, answer_style)
+            elements.append(answer)
+            elements.append(Spacer(1, 0.2*inch))
+    
+    # Build PDF
+    doc.build(elements)
+    
+    # Get the value of the BytesIO buffer
+    pdf_data = buffer.getvalue()
+    buffer.close()
+    
+    return pdf_data
 
 def main():
     load_dotenv()
@@ -62,9 +198,55 @@ def main():
         st.markdown("### 🎛️ Chat Controls")
         
         if st.button("🗑️ Clear Chat History", use_container_width=True):
-            st.session_state.messages = []
-            st.session_state.chat_history = []
+            st.session_state.dbms_messages = []
+            st.session_state.dbms_chat_history = []
             st.rerun()
+
+        st.markdown("----")
+
+        st.markdown("### 📜 Generate PDF")
+        
+        # PDF generation button
+        if st.button("📥 Download Conversation as PDF", use_container_width=True):
+            if "dbms_messages" in st.session_state and st.session_state.dbms_messages:
+                try:
+                    pdf_data = generate_chat_pdf(st.session_state.dbms_messages)
+                    
+                    # Create download button
+                    st.download_button(
+                        label="💾 Click to Download PDF",
+                        data=pdf_data,
+                        file_name=f"dbms_chat_{datetime.now().strftime('%Y%m%d_%H%M%S')}.pdf",
+                        mime="application/pdf",
+                        use_container_width=True
+                    )
+                    st.success("✅ PDF generated successfully!")
+                except Exception as e:
+                    st.error(f"❌ Error generating PDF: {str(e)}")
+            else:
+                st.warning("⚠️ No conversation to export. Start chatting first!")
+        
+        st.markdown("----")
+        
+        st.markdown("### 🗄️ Database Management")
+        
+        # Button to recreate vector database
+        if st.button("🔄 Rebuild Vector Database", use_container_width=True):
+            vectordb_path = 'vectordb/dbms_faiss'
+            try:
+                # Remove existing database
+                if os.path.exists(vectordb_path):
+                    import shutil
+                    shutil.rmtree(vectordb_path)
+                    st.info("🗑️ Removed old database...")
+                
+                # Recreate database
+                with st.spinner("Rebuilding vector database..."):
+                    st.session_state.dbms_vectordb = load_and_create_vectordb(vectordb_path)
+                st.success("✅ Database rebuilt successfully!")
+                st.rerun()
+            except Exception as e:
+                st.error(f"❌ Error rebuilding database: {str(e)}")
 
     # Initialize session state with page-specific keys
     if "dbms_messages" not in st.session_state:
