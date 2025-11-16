@@ -1,4 +1,4 @@
-# for CN
+# for HCI
 
 # langchain libraries
 import os
@@ -13,6 +13,7 @@ from langchain_core.prompts import PromptTemplate, ChatPromptTemplate, MessagesP
 from langchain_core.runnables import RunnablePassthrough
 from langchain_community.vectorstores import FAISS
 from langchain_community.utilities import GoogleSearchAPIWrapper
+from langchain_core.documents import Document
 from dotenv import load_dotenv
 
 # pdf loader
@@ -21,7 +22,7 @@ from pdf2image import convert_from_path
 
 # libraries for generating pdfs
 import io
-import re
+import json
 from datetime import datetime
 from reportlab.lib.pagesizes import letter
 from reportlab.lib.units import inch
@@ -43,34 +44,44 @@ def get_embeddings():
         model='sentence-transformers/all-MiniLM-L6-v2'
     )
 
-import re
-
-def clean_text(text: str) -> str:
+def clean_text(text):
     """
-    Clean OCR-extracted text from image-based PDFs.
-    Removes page numbers, extra spaces, strange characters, and normalizes newlines.
+    Simple text cleaning for purely text-based HCI textbook.
     """
-
-    # Remove page numbers like: "Page 1", "page 2", "3", "  4  "
-    text = re.sub(r'^\s*(?:page\s*)?\d+\s*$', '', text, flags=re.IGNORECASE | re.MULTILINE)
-
-    # Remove repeated newlines (convert 2+, into just 1)
-    text = re.sub(r'\n{2,}', '\n', text)
-
-    # Remove multiple spaces
-    text = re.sub(r'[ ]{2,}', ' ', text)
-
-    # Remove stray OCR artifacts (common junk characters)
-    text = re.sub(r'[~`´•·■□◆◇▶◀►◄]', '', text)
-
-    # Trim each line
-    text = "\n".join(line.strip() for line in text.splitlines())
-
-    # Remove completely empty lines again after trimming
-    text = re.sub(r'\n{2,}', '\n', text)
-
-    return text.strip()
-
+    if not text:
+        return ""
+    
+    # Remove extra spaces
+    text = re.sub(r'  +', ' ', text)
+    
+    # Remove extra newlines (keep max 2 newlines = 1 blank line)
+    text = re.sub(r'\n\n\n+', '\n\n', text)
+    
+    # Fix broken words across lines (hyphenation)
+    text = re.sub(r'(\w)-\n(\w)', r'\1\2', text)
+    
+    # Remove page numbers (lines with only numbers)
+    text = re.sub(r'^\d+\s*$', '', text, flags=re.MULTILINE)
+    
+    # Fix spacing before punctuation
+    text = re.sub(r' +([.,;:!?])', r'\1', text)
+    
+    # Remove non-ASCII characters
+    text = re.sub(r'[^\x00-\x7F]+', '', text)
+    
+    # Fix common OCR mistakes
+    text = text.replace('|', 'I')
+    text = text.replace('~', '-')
+    
+    # Remove extra whitespace at line starts and ends
+    lines = [line.strip() for line in text.split('\n')]
+    text = '\n'.join(lines)
+    
+    # Final cleanup
+    text = re.sub(r'\n\n+', '\n\n', text)
+    text = text.strip()
+    
+    return text
 
 def web_search_fallback(query: str) -> str:
     """
@@ -89,14 +100,14 @@ def web_search_fallback(query: str) -> str:
 
         structured_prompt = PromptTemplate(
             template="""
-            You are a Human Computer Interface(HCI) expert assistant. 
+            You are a Human Computer Interface (HCI) expert assistant. 
             A user asked: "{query}"
 
             Here are the web search results:
             {search_results}
 
             Please provide a clear, structured answer to the user's question based on these search results.
-            Keep it concise and relevant to Computer Networks concepts.
+            Keep it concise and relevant to Human Computer Interface concepts.
             """,
             input_variables=['query', 'search_results'],
             validate_template=True
@@ -114,36 +125,125 @@ def web_search_fallback(query: str) -> str:
     except Exception as e:
         return f"An error occurred during web search fallback: {str(e)}"
     
-def extract_text_from_image_pdf(pdf_path):
-    """Extract text from image-based PDF using OCR"""
+def extract_and_save_text_from_pdf(pdf_path, cache_path, max_pages=None):
+    """
+    Extract text from image-based PDF using OCR and cache it.
+    Returns list of documents (one per page).
+    """
+    # Check if cached extraction exists
+    if os.path.exists(cache_path):
+        st.info(f"📂 Loading cached OCR text from: {cache_path}")
+        try:
+            with open(cache_path, 'r', encoding='utf-8') as f:
+                cached_data = json.load(f)
+                st.success(f"✅ Loaded {len(cached_data)} pages from cache")
+                return [Document(page_content=page['content'], metadata=page['metadata']) 
+                        for page in cached_data]
+        except Exception as e:
+            st.warning(f"⚠️ Could not load cache: {str(e)}. Re-extracting...")
+    
+    # Perform OCR extraction
+    if not os.path.exists(pdf_path):
+        raise FileNotFoundError(f"PDF file not found: {pdf_path}")
+    
+    st.info(f"🔍 Converting PDF to images: {pdf_path}")
+    
     try:
-        if not os.path.exists(pdf_path):
-            raise FileNotFoundError(f"PDF file not found: {pdf_path}")
-        
-        st.info(f"🔍 Performing OCR on PDF: {pdf_path}")
-        pages = convert_from_path(pdf_path, dpi=300)  # Higher DPI for better OCR
-        text = ""
-
-        for i, page in enumerate(pages):
-            n = len(pages)
-
-            st.write(f"Processing page {i+1}/{len(pages)}...")
-            page_text = pytesseract.image_to_string(page, lang='eng')
+        # Convert PDF to images
+        pages = convert_from_path(pdf_path, dpi=200, fmt='jpeg')
+    except Exception as e:
+        st.error(f"❌ Failed to convert PDF: {str(e)}")
+        return []
+    
+    total_pages = len(pages)
+    if max_pages:
+        total_pages = min(total_pages, max_pages)
+        pages = pages[:max_pages]
+        st.warning(f"⚠️ Processing only first {max_pages} pages (test mode)")
+    
+    st.info(f"📄 Extracting text from {total_pages} pages with OCR...")
+    
+    # Simplified Tesseract configuration
+    custom_config = r'--oem 3 --psm 6'
+    
+    progress_bar = st.progress(0)
+    status_text = st.empty()
+    
+    documents = []
+    page_data_for_cache = []
+    
+    for i, page in enumerate(pages):
+        try:
+            # Update progress
+            progress = (i + 1) / total_pages
+            progress_bar.progress(progress)
+            status_text.text(f"🔄 Processing page {i+1}/{total_pages}...")
+            
+            # Extract text with timeout
+            page_text = pytesseract.image_to_string(
+                page, 
+                lang='eng',
+                config=custom_config,
+                timeout=30
+            )
             
             # Clean the extracted text
             page_text = clean_text(page_text)
-            text += page_text + "\n\n"
-
-        st.success(f"✅ Extracted text from {len(pages)} pages")
-        return text
+            
+            # Only add non-empty pages
+            if page_text.strip():
+                metadata = {
+                    "source": pdf_path,
+                    "page": i + 1
+                }
+                
+                # Create document for this page
+                documents.append(Document(
+                    page_content=page_text,
+                    metadata=metadata
+                ))
+                
+                # Store for cache
+                page_data_for_cache.append({
+                    'content': page_text,
+                    'metadata': metadata
+                })
+                
+                # Log progress without printing full text
+                word_count = len(page_text.split())
+                st.write(f"  ✓ Page {i+1}: Extracted {word_count} words")
+            else:
+                st.write(f"  ⊘ Page {i+1}: No text found (skipped)")
+            
+        except Exception as page_error:
+            st.warning(f"⚠️ Error on page {i+1}: {str(page_error)}. Skipping...")
+            continue
     
-    except Exception as e:
-        st.error(f"❌ Error during OCR extraction: {str(e)}")
-        return ""
+    progress_bar.empty()
+    status_text.empty()
+    
+    # Save to cache
+    if documents:
+        try:
+            os.makedirs(os.path.dirname(cache_path), exist_ok=True)
+            with open(cache_path, 'w', encoding='utf-8') as f:
+                json.dump(page_data_for_cache, f, ensure_ascii=False, indent=2)
+            st.success(f"💾 Cached OCR results to: {cache_path}")
+            st.success(f"✅ Successfully extracted text from {len(documents)} pages")
+        except Exception as e:
+            st.warning(f"⚠️ Could not save cache: {str(e)}")
+    else:
+        st.error("❌ No text was extracted from the PDF")
+    
+    return documents
 
-def load_and_create_vectordb(pdf_path='pdfs/hci_tb.pdf', vectordb_dir='vectordb/hci_faiss'):
+def load_and_create_vectordb(pdf_path='pdfs/hci_tb.pdf', 
+                             vectordb_dir='vectordb/hci_faiss',
+                             cache_dir='cache',
+                             test_mode=False):
     """
-    Load PDF, clean text, create chunks and build FAISS vector database
+    Load PDF, clean text, create chunks and build FAISS vector database.
+    Uses cached OCR results if available.
     """
     embeddings = get_embeddings()
 
@@ -162,36 +262,64 @@ def load_and_create_vectordb(pdf_path='pdfs/hci_tb.pdf', vectordb_dir='vectordb/
             st.warning(f"⚠️ Could not load existing database: {str(e)}. Creating new one...")
 
     # Create a vector database if it doesn't exist
-    st.info("🔨 Creating new vector database (this may take a moment)...")
+    st.info("🔨 Creating new vector database...")
     
-    # Extract text from PDF
-    extracted_text = extract_text_from_image_pdf(pdf_path)
-    
-    if not extracted_text:
-        st.error("❌ No text extracted from PDF. Cannot create vector database.")
+    # Check if PDF exists
+    if not os.path.exists(pdf_path):
+        st.error(f"❌ PDF file not found at: {pdf_path}")
+        st.info("Please ensure your PDF is in the correct location")
         return None
     
-    # Create Document objects from the extracted text
-    from langchain_core.documents import Document
-    docs = [Document(page_content=extracted_text, metadata={"source": pdf_path})]
+    # Set up cache path
+    pdf_name = os.path.splitext(os.path.basename(pdf_path))[0]
+    cache_path = os.path.join(cache_dir, f"{pdf_name}_ocr_cache.json")
     
-    # Split into chunks
+    # Extract text from PDF (with caching)
+    max_pages = 10 if test_mode else None
+    documents = extract_and_save_text_from_pdf(pdf_path, cache_path, max_pages=max_pages)
+    
+    if not documents:
+        st.error("❌ No documents extracted. Cannot create vector database.")
+        return None
+    
+    st.info(f"📊 Total documents (pages): {len(documents)}")
+    
+    # Show preview of first document
+    with st.expander("📄 Preview of first page text (first 500 characters)"):
+        st.text(documents[0].page_content[:500])
+    
+    st.info("✂️ Splitting text into chunks...")
+    
+    # Split documents into chunks
     splitter = RecursiveCharacterTextSplitter(
-        chunk_size=1000,
-        chunk_overlap=250,
-        separators=["\n\n", "\n", ". ", " ", ""]
+        chunk_size=1200,
+        chunk_overlap=300,
+        separators=["\n\n", "\n", ". ", " ", ""],
+        length_function=len,
     )
-    chunks = splitter.split_documents(docs)
     
-    st.info(f"📄 Created {len(chunks)} chunks from the document")
+    try:
+        chunks = splitter.split_documents(documents)
+        st.info(f"📄 Created {len(chunks)} chunks from {len(documents)} pages")
+    except Exception as e:
+        st.error(f"❌ Error splitting documents: {str(e)}")
+        return None
     
     # Create vector database
-    vectordb = FAISS.from_documents(chunks, embeddings)
+    st.info("🔮 Creating vector embeddings (this may take a minute)...")
+    try:
+        vectordb = FAISS.from_documents(chunks, embeddings)
+    except Exception as e:
+        st.error(f"❌ Error creating vector database: {str(e)}")
+        return None
     
     # Save to disk for future use
-    os.makedirs(vectordb_dir, exist_ok=True)
-    vectordb.save_local(vectordb_dir)
-    st.success(f"✅ Vector database created and saved to {vectordb_dir}")
+    try:
+        os.makedirs(vectordb_dir, exist_ok=True)
+        vectordb.save_local(vectordb_dir)
+        st.success(f"✅ Vector database created and saved to {vectordb_dir}")
+    except Exception as e:
+        st.warning(f"⚠️ Database created but could not save to disk: {str(e)}")
     
     return vectordb
 
@@ -256,7 +384,7 @@ def generate_chat_pdf(messages):
         spaceAfter=12,
         spaceBefore=6,
         backColor=HexColor('#dbeafe'),
-        leading=14  # Line spacing
+        leading=14
     )
     
     # Answer style (assistant)
@@ -270,7 +398,7 @@ def generate_chat_pdf(messages):
         spaceAfter=12,
         spaceBefore=6,
         backColor=HexColor('#f3f4f6'),
-        leading=13  # Line spacing
+        leading=13
     )
     
     # Label styles
@@ -284,7 +412,7 @@ def generate_chat_pdf(messages):
     )
     
     # Add title
-    title = Paragraph("Human Computer Interface Chatbot Conversation", title_style)
+    title = Paragraph("HCI Chatbot Conversation", title_style)
     elements.append(title)
     
     # Add timestamp
@@ -347,6 +475,49 @@ def main():
             st.rerun()
 
         st.markdown("---")
+        
+        st.markdown("### ⚙️ Database Settings")
+        
+        # Test mode toggle
+        test_mode = st.checkbox("🧪 Test Mode (10 pages only)", value=False, 
+                               help="Process only first 10 pages for faster testing")
+        
+        # Button to clear OCR cache
+        if st.button("🗑️ Clear OCR Cache", use_container_width=True):
+            cache_dir = 'cache'
+            try:
+                if os.path.exists(cache_dir):
+                    import shutil
+                    shutil.rmtree(cache_dir)
+                    st.success("✅ OCR cache cleared!")
+                else:
+                    st.info("ℹ️ No cache to clear")
+            except Exception as e:
+                st.error(f"❌ Error clearing cache: {str(e)}")
+        
+        # Button to recreate vector database
+        if st.button("🔄 Rebuild Vector Database", use_container_width=True):
+            vectordb_path = 'vectordb/hci_faiss'
+            try:
+                # Remove existing database
+                if os.path.exists(vectordb_path):
+                    import shutil
+                    shutil.rmtree(vectordb_path)
+                    st.info("🗑️ Removed old database...")
+                
+                # Recreate database
+                with st.spinner("Rebuilding vector database..."):
+                    st.session_state.hci_vectordb = load_and_create_vectordb(test_mode=test_mode)
+                    
+                if st.session_state.hci_vectordb:
+                    st.success("✅ Database rebuilt successfully!")
+                    st.rerun()
+                else:
+                    st.error("❌ Failed to rebuild database")
+            except Exception as e:
+                st.error(f"❌ Error rebuilding database: {str(e)}")
+        
+        st.markdown("---")
 
         st.markdown("### 📜 Generate PDF")
 
@@ -360,7 +531,7 @@ def main():
                     st.download_button(
                         label="💾 Click to Download PDF",
                         data=pdf_data,
-                        file_name=f"cn_chat_{datetime.now().strftime('%Y%m%d_%H%M%S')}.pdf",
+                        file_name=f"hci_chat_{datetime.now().strftime('%Y%m%d_%H%M%S')}.pdf",
                         mime="application/pdf",
                         use_container_width=True
                     )
@@ -372,23 +543,12 @@ def main():
         
         st.markdown("----")
 
-        # Button to recreate vector database
-        if st.button("🔄 Rebuild Vector Database", use_container_width=True):
-            vectordb_path = 'vectordb/hci_faiss'
-            try:
-                # Remove existing database
-                if os.path.exists(vectordb_path):
-                    import shutil
-                    shutil.rmtree(vectordb_path)
-                    st.info("🗑️ Removed old database...")
-                
-                # Recreate database
-                with st.spinner("Rebuilding vector database..."):
-                    st.session_state.hhci_vectordb = load_and_create_vectordb()
-                st.success("✅ Database rebuilt successfully!")
-                st.rerun()
-            except Exception as e:
-                st.error(f"❌ Error rebuilding database: {str(e)}")
+        # Status indicator
+        st.markdown("### 📊 Status")
+        if "hci_vectordb" in st.session_state and st.session_state.hci_vectordb:
+            st.success("✅ Database Ready")
+        else:
+            st.warning("⚠️ Database Not Loaded")
 
     # Initialize session state
     if "hci_messages" not in st.session_state:
@@ -398,9 +558,23 @@ def main():
         st.session_state.hci_chat_history = []
     
     if "hci_vectordb" not in st.session_state:
-        with st.spinner("Loading HCI knowledge base..."):
-            st.session_state.hci_vectordb = load_and_create_vectordb()
-        st.success("Knowledge base loaded!")
+        st.info("🚀 Initializing HCI knowledge base...")
+        st.info("💡 Tip: First time setup may take 5-10 minutes. Results will be cached for future use.")
+        
+        try:
+            with st.spinner("Loading HCI knowledge base... Please wait..."):
+                st.session_state.hci_vectordb = load_and_create_vectordb()
+            
+            if st.session_state.hci_vectordb:
+                st.success("✅ Knowledge base loaded successfully! You can now start chatting.")
+                st.balloons()
+            else:
+                st.error("❌ Failed to load knowledge base. Please check the errors above.")
+                st.stop()
+        except Exception as e:
+            st.error(f"❌ Critical error during initialization: {str(e)}")
+            st.info("Try enabling Test Mode in sidebar to process only 10 pages")
+            st.stop()
 
     # Get user input
     user_input = st.chat_input("Ask anything about Human Computer Interface...")
@@ -422,7 +596,7 @@ def main():
         # Handle casual greetings
         if is_casual and len(user_input.split()) <= 3:
             prompt = ChatPromptTemplate.from_messages([
-                ("system", "You are a friendly Human Computer Interface expert assistant. Respond warmly to greetings."),
+                ("system", "You are a friendly HCI expert assistant. Respond warmly to greetings."),
                 MessagesPlaceholder(variable_name="chat_history"),
                 ("human", "{question}")
             ])
@@ -444,18 +618,21 @@ def main():
         else:
             retriever = st.session_state.hci_vectordb.as_retriever(
                 search_type="similarity",
-                search_kwargs={"k": 3}
+                search_kwargs={"k": 4}
             )
 
             prompt = ChatPromptTemplate.from_messages([
-                ("system", """You are an expert Human Computer Interface(HCI) assistant who has mastered all the concepts of HCI.
+                ("system", """You are an expert Human Computer Interface (HCI) assistant who has mastered all the concepts of Human Computer Interface.
 Answer the question using the context extracted from the HCI textbook and the previous conversation.
 
 Guidelines for your response:
 - Provide a **detailed yet concise** explanation.
 - Use **clear, simple, and structured** language.
+- Break down complex concepts into understandable parts.
+- Include relevant examples or analogies when helpful.
 - If the answer is **not present** in the context, respond only with: "I don't have enough information in the knowledge base to answer this question."
 - Do not add unrelated information beyond what is asked.
+- Maintain a conversational yet professional tone.
 
 --- 
 AI Context:
