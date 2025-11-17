@@ -4,9 +4,20 @@ from langchain_community.vectorstores import FAISS
 from langchain_core.prompts import ChatPromptTemplate, MessagesPlaceholder
 from langchain_core.runnables import RunnablePassthrough
 from langchain_core.messages import HumanMessage, AIMessage
+from langchain_community.utilities import GoogleSearchAPIWrapper
 from dotenv import load_dotenv
 import streamlit as st
 from PyPDF2 import PdfReader
+from datetime import datetime
+
+# libraries for generating pdfs
+from reportlab.lib.pagesizes import letter
+from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
+from reportlab.lib.units import inch
+from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer, PageBreak
+from reportlab.lib.enums import TA_LEFT, TA_RIGHT
+from reportlab.lib.colors import HexColor
+import io
 
 # ✅ LLM Model (HuggingFace Endpoint)
 def chat_model():
@@ -24,10 +35,146 @@ def get_embeddings():
         model='sentence-transformers/all-MiniLM-L6-v2'
     )
 
+def clean_text(text):
+
+    pass
+
+def web_search_fallback(query: str) -> str:
+    """
+    This is a Fallback function invoked when the model fails to generate output from the given context of the database.
+    """
+    try:
+        search = GoogleSearchAPIWrapper()
+        search_results = search.run(query)
+
+        llm = chat_model()
+
+        structure_prompt = f"""You are a DBMS expert assistant. 
+        A user asked: "{query}"
+
+        Here are the web search results:
+        {search_results}
+
+        Please provide a clear, structured answer to the user's question based on these search results.
+        Keep it concise and relevant to DBMS concepts.
+        """ 
+
+        response = llm.invoke(structure_prompt)
+        return response.content
+    
+    except Exception as e:
+        return f"Apologies, I couldn't find the relevant information right now. Please try again later.\nError: {str(e)}"
+
+def generate_chat_pdf(messages):
+    """Generate a PDF from chat messages"""
+    buffer = io.BytesIO()
+    doc = SimpleDocTemplate(buffer, pagesize=letter,
+                           rightMargin=72, leftMargin=72,
+                           topMargin=72, bottomMargin=18)
+    
+    # Container for the 'Flowable' objects
+    elements = []
+    
+    # Define styles
+    styles = getSampleStyleSheet()
+    
+    # Title style
+    title_style = ParagraphStyle(
+        'CustomTitle',
+        parent=styles['Heading1'],
+        fontSize=24,
+        textColor=HexColor('#1e40af'),
+        spaceAfter=30,
+        alignment=TA_LEFT
+    )
+    
+    # Question style (user)
+    question_style = ParagraphStyle(
+        'Question',
+        parent=styles['Normal'],
+        fontSize=11,
+        textColor=HexColor('#1f2937'),
+        leftIndent=20,
+        rightIndent=20,
+        spaceAfter=6,
+        spaceBefore=12,
+        backColor=HexColor('#dbeafe'),
+        borderPadding=10,
+        borderRadius=5
+    )
+    
+    # Answer style (assistant)
+    answer_style = ParagraphStyle(
+        'Answer',
+        parent=styles['Normal'],
+        fontSize=10,
+        textColor=HexColor('#374151'),
+        leftIndent=20,
+        rightIndent=20,
+        spaceAfter=20,
+        spaceBefore=6,
+        backColor=HexColor('#f3f4f6'),
+        borderPadding=10,
+        borderRadius=5
+    )
+    
+    # Label styles
+    label_style = ParagraphStyle(
+        'Label',
+        parent=styles['Normal'],
+        fontSize=9,
+        textColor=HexColor('#6b7280'),
+        spaceAfter=3
+    )
+    
+    # Add title
+    title = Paragraph("DBMS Chatbot Conversation", title_style)
+    elements.append(title)
+    
+    # Add timestamp
+    timestamp = Paragraph(
+        f"<i>Generated on: {datetime.now().strftime('%B %d, %Y at %I:%M %p')}</i>",
+        label_style
+    )
+    elements.append(timestamp)
+    elements.append(Spacer(1, 0.3*inch))
+    
+    # Add messages
+    for i, message in enumerate(messages, 1):
+        if message["role"] == "user":
+            # Add Q label
+            q_label = Paragraph(f"<b>Question {i//2 + 1}:</b>", label_style)
+            elements.append(q_label)
+            
+            # Add question with HTML escaping
+            question_text = message["content"].replace('&', '&amp;').replace('<', '&lt;').replace('>', '&gt;')
+            question = Paragraph(question_text, question_style)
+            elements.append(question)
+            
+        else:  # assistant
+            # Add A label
+            a_label = Paragraph("<b>Answer:</b>", label_style)
+            elements.append(a_label)
+            
+            # Add answer with HTML escaping
+            answer_text = message["content"].replace('&', '&amp;').replace('<', '&lt;').replace('>', '&gt;')
+            answer = Paragraph(answer_text, answer_style)
+            elements.append(answer)
+            elements.append(Spacer(1, 0.2*inch))
+    
+    # Build PDF
+    doc.build(elements)
+    
+    # Get the value of the BytesIO buffer
+    pdf_data = buffer.getvalue()
+    buffer.close()
+    
+    return pdf_data
+
 # ✅ MAIN APP
 def main():
     load_dotenv()
-    st.set_page_config(page_title="Ask your PDF", layout="wide")
+    st.set_page_config(page_title="ChatBot..", layout="wide", page_icon="📜")
     
     # Initialize session state
     if "messages" not in st.session_state:
@@ -63,13 +210,28 @@ def main():
             st.rerun()
         
         st.markdown("---")
+
+        st.markdown("### 📜 Generate PDF")
         
-        # Footer
-        st.markdown("""
-        <div style='text-align: center; padding: 10px 0; color: #666; font-size: 12px;'>
-            <p>💡 Developed by Vedant K.</p>
-        </div>
-        """, unsafe_allow_html=True)
+        # PDF generation button
+        if st.button("📥 Download Conversation as PDF", use_container_width=True):
+            if "dbms_messages" in st.session_state and st.session_state.dbms_messages:
+                try:
+                    pdf_data = generate_chat_pdf(st.session_state.dbms_messages)
+                    
+                    # Create download button
+                    st.download_button(
+                        label="💾 Click to Download PDF",
+                        data=pdf_data,
+                        file_name=f"dbms_chat_{datetime.now().strftime('%Y%m%d_%H%M%S')}.pdf",
+                        mime="application/pdf",
+                        use_container_width=True
+                    )
+                    st.success("✅ PDF generated successfully!")
+                except Exception as e:
+                    st.error(f"❌ Error generating PDF: {str(e)}")
+            else:
+                st.warning("⚠️ No conversation to export. Start chatting first!")
     
     if pdf is not None:
         # Process PDF only if not already processed
@@ -99,7 +261,7 @@ def main():
                 st.success("PDF processed successfully!")
         
         # User input at the bottom (placed before chat display)
-        user_question = st.chat_input("Ask a question about your PDF:")
+        user_question = st.chat_input("Ask anything:")
         
         if user_question:
             # Add user message to chat history
