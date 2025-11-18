@@ -35,10 +35,6 @@ def get_embeddings():
         model='sentence-transformers/all-MiniLM-L6-v2'
     )
 
-def clean_text(text):
-
-    pass
-
 def web_search_fallback(query: str) -> str:
     """
     This is a Fallback function invoked when the model fails to generate output from the given context of the database.
