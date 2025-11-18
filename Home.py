@@ -254,7 +254,7 @@ Guidelines:
 # ✅ MAIN APP
 def main():
     load_dotenv()
-    st.set_page_config(page_title="AI Assistant", layout="wide", page_icon="🤖")
+    st.set_page_config(page_title="AI Assistant", layout="centered", page_icon="🤖")
     
     # Initialize session state
     if "messages" not in st.session_state:

@@ -150,7 +150,7 @@ def extract_and_save_text_from_pdf(pdf_path, cache_path, max_pages=None):
     
     try:
         # Convert PDF to images
-        pages = convert_from_path(pdf_path, dpi=200, fmt='jpeg')
+        pages = convert_from_path(pdf_path, dpi=250, fmt='jpeg')
     except Exception as e:
         st.error(f"❌ Failed to convert PDF: {str(e)}")
         return []
@@ -238,9 +238,9 @@ def extract_and_save_text_from_pdf(pdf_path, cache_path, max_pages=None):
     return documents
 
 def load_and_create_vectordb(pdf_path='pdfs/wt_tb.pdf', 
-                             vectordb_dir='vectordb/wt_faiss',
-                             cache_dir='cache',
-                             test_mode=False):
+                        vectordb_dir='vectordb/wt_faiss',
+                        cache_dir='cache',
+                        test_mode=False):
     """
     Load PDF, clean text, create chunks and build FAISS vector database.
     Uses cached OCR results if available.
