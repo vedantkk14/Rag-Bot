@@ -263,7 +263,6 @@ def generate_quiz_from_history(chat_history):
 
     llm = chat_model()
 
-    # Strict prompt to ensure consistent formatting for parsing
     quiz_prompt = f"""
     You are a teacher. Based strictly on the following conversation history, generate 5 multiple-choice questions (MCQs) to test the user's understanding of the topics discussed.
     
