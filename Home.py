@@ -11,6 +11,11 @@ from PyPDF2 import PdfReader
 from datetime import datetime
 import re
 
+# NEW IMPORTS FOR OCR
+import pytesseract
+from pdf2image import convert_from_bytes
+from PIL import Image
+
 # libraries for generating pdfs
 from reportlab.lib.pagesizes import letter
 from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
@@ -424,15 +429,39 @@ def main():
     if pdf is not None:
         if st.session_state.knowledge_base is None:
             with st.spinner("Processing PDF..."):
-                pdf_reader = PdfReader(pdf)
                 
-                # Extract and clean text
-                text = ""
-                for page in pdf_reader.pages:
-                    extracted = page.extract_text()
-                    if extracted:
-                        cleaned = clean_text(extracted)
-                        text += cleaned + " "
+                # --- MODIFIED SECTION START ---
+                raw_text = ""
+                try:
+                    # 1. Attempt standard text extraction
+                    pdf_reader = PdfReader(pdf)
+                    for page in pdf_reader.pages:
+                        extracted = page.extract_text()
+                        if extracted:
+                            raw_text += extracted + " "
+                    
+                    # 2. Check if extraction failed (indicative of image/scanned PDF)
+                    # We check if raw_text is empty or contains very little valid data
+                    if len(raw_text.strip()) < 50:
+                        st.warning("⚠️ Scanned PDF detected. Converting images to text (OCR)... This may take a moment.")
+                        
+                        # Reset file pointer to beginning for pdf2image
+                        pdf.seek(0)
+                        
+                        # Convert PDF bytes to images
+                        images = convert_from_bytes(pdf.read())
+                        
+                        # Perform OCR on each page
+                        for image in images:
+                            ocr_text = pytesseract.image_to_string(image)
+                            raw_text += ocr_text + " "
+                            
+                except Exception as e:
+                    st.error(f"Error during PDF processing: {str(e)}")
+                
+                # 3. Clean and normalize the text (works for both standard and OCR text)
+                text = clean_text(raw_text)
+                # --- MODIFIED SECTION END ---
                 
                 # Split into chunks
                 text_splitter = CharacterTextSplitter(
