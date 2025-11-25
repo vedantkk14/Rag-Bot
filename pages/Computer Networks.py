@@ -579,7 +579,7 @@ def main():
         page_icon="🤖",
         layout="centered"
     )
-    st.title("📘 CN Chatbot")
+    st.title("📘 Chat CN")
 
     with st.sidebar:
 
@@ -740,7 +740,7 @@ def main():
                 st.error(f"Error loading PYQ data: {e}")
 
     # Get user input
-    user_input = st.chat_input("Ask anything about Computer Networks...")
+    user_input = st.chat_input("Ask anything about CN...")
 
     # Process user input
     if user_input:

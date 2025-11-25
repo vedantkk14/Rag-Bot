@@ -478,7 +478,7 @@ def main():
                 st.success("✅ PDF processed successfully! You can now ask questions about it.")
     
     # User input at the bottom
-    user_question = st.chat_input("Ask me anything..." if pdf is None else "Ask about the PDF or anything else...")
+    user_question = st.chat_input("Ask anything..." if pdf is None else "Ask about the PDF or anything else...")
     
     if user_question:
         # Add user message to chat history
