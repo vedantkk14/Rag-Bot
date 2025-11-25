@@ -1,24 +1,33 @@
-# Langchain core
-Langchain
-langchain-core
-lamgchain-expermental
+# Streamlit
+streamlit
 
-# Huggingface Integration
+# LangChain ecosystem
+langchain
+langchain-core
+langchain-community
+langchain-experimental
 langchain-huggingface
+
+# HuggingFace + Transformers
 transformers
 huggingface-hub
+sentence-transformers
 
-# Env var management
+# Vector database (FAISS)
+faiss-cpu
+
+# Environment variables
 python-dotenv
 
-# basic utilities
+# PDF handling
+pypdf
+
+# Web scraping / HTML parsing
+beautifulsoup4
+requests
+
+# Utilities
 numpy
 pandas
 scikit-learn
-sentence-transformers
-hf_xet
-bs4
-streamlit
-request
-pypdf
 
