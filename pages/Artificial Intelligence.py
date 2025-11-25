@@ -31,7 +31,7 @@ from thefuzz import fuzz # For matching similar questions
 def chat_model():
     llm = HuggingFaceEndpoint(
         repo_id='openai/gpt-oss-20b', 
-        task='conversational',
+        task='text-generation',
         temperature=0.8
     )
     return ChatHuggingFace(llm=llm)

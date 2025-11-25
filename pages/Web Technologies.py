@@ -38,7 +38,7 @@ def chat_model():
     llm = HuggingFaceEndpoint(
         repo_id='openai/gpt-oss-20b',
         task='text-generation', 
-        temperature=0.3
+        temperature=0.7
     )
     return ChatHuggingFace(llm=llm)
 

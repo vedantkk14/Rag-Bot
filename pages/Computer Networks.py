@@ -35,7 +35,7 @@ from thefuzz import fuzz # For matching similar questions
 
 def chat_model():
     llm = HuggingFaceEndpoint(
-        repo_id='meta-llama/Llama-3.1-8B-Instruct',
+        repo_id='openai/gpt-oss-20b',
         task='text-generation', 
         temperature=0.8
     )
@@ -543,7 +543,6 @@ def process_pyq_pdfs(folder_path=None, force_reprocess=False):
                 # Only process if it belongs to Units 3-6
                 if unit_name and unit_name in unit_database:
                     
-                    # --- FUZZY MATCHING INSIDE THE SPECIFIC UNIT ---
                     found = False
                     for existing in unit_database[unit_name]:
                         similarity = fuzz.token_sort_ratio(q_text.lower(), existing['question'].lower())

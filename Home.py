@@ -28,7 +28,7 @@ import io
 # LLM Model (HuggingFace Endpoint)
 def chat_model():
     llm = HuggingFaceEndpoint(
-        repo_id="Qwen/Qwen2.5-7B-Instruct",
+        repo_id="openai/gpt-oss-20b",
         task="text-generation",
         temperature=0.8,
         max_new_tokens=512
@@ -349,7 +349,7 @@ def main():
     if "quiz_data" not in st.session_state:
         st.session_state.quiz_data = None
     
-    st.header("🤖 AI Assistant - Your Friendly Helper")
+    st.header("🤖 UniMate AI - Your Friendly Helper")
     
     # Sidebar with PDF upload and controls
     with st.sidebar:
@@ -385,11 +385,11 @@ def main():
             st.session_state.chat_history = []
             st.rerun()
         
-        if st.button("🔄 Reset Everything", use_container_width=True):
-            st.session_state.messages = []
-            st.session_state.knowledge_base = None
-            st.session_state.chat_history = []
-            st.rerun()
+        # if st.button("🔄 Reset Everything", use_container_width=True):
+        #     st.session_state.messages = []
+        #     st.session_state.knowledge_base = None
+        #     st.session_state.chat_history = []
+        #     st.rerun()
         
         st.markdown("---")
 
@@ -569,7 +569,7 @@ PDF Context:
                     </div>
                     """, unsafe_allow_html=True)
     else:
-        st.info("👋 Hi! I'm your AI assistant. Ask me anything or upload a PDF to get started!")
+        st.info("Ask me anything or upload a PDF to get started!")
 
 if __name__ == "__main__":
     main()

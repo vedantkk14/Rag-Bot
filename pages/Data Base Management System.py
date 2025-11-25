@@ -31,7 +31,7 @@ from thefuzz import fuzz # For matching similar questions
 
 def chat_model():
     llm = HuggingFaceEndpoint(
-        repo_id='Qwen/Qwen2.5-7B-Instruct',
+        repo_id='openai/gpt-oss-20b',
         task='text-generation',
         temperature=0.8,
         max_new_tokens=512
@@ -411,7 +411,6 @@ def process_pyq_pdfs(folder_path=None, force_reprocess=False):
                 # Only process if it belongs to Units 3-6
                 if unit_name and unit_name in unit_database:
                     
-                    # --- FUZZY MATCHING INSIDE THE SPECIFIC UNIT ---
                     found = False
                     for existing in unit_database[unit_name]:
                         similarity = fuzz.token_sort_ratio(q_text.lower(), existing['question'].lower())
@@ -470,33 +469,20 @@ def main():
 
         st.markdown("### 📊 Exam Analysis")
         
-        col1, col2 = st.columns([0.7, 0.3])
-        
-        with col1:
-            if st.button("🧠 Analyze PYQs", use_container_width=True):
-                with st.spinner("Loading analysis..."):
-                    # force_reprocess defaults to False, so it loads JSON if available
-                    result = process_pyq_pdfs() 
-                    
-                    if isinstance(result, str): # Handle error strings
-                        if result == "FOLDER_MISSING":
-                            st.error("❌ Folder 'pyq_pdfs' not found!")
-                        elif result == "NO_FILES":
-                            st.error("❌ No PDFs found in 'pyq_pdfs' folder.")
-                    else:
-                        st.success(f"✅ Loaded {sum(len(v) for v in result.values())} questions.")
-                        # UPDATED: Use dbms_ prefix
-                        st.session_state.dbms_show_pyq_results = True 
-                        st.rerun()
-
-        with col2:
-            # Small refresh button to Force Update
-            if st.button("🔄", help="Force re-scan of PDFs"):
-                with st.spinner("Re-scanning PDFs (this takes time)..."):
-                    result = process_pyq_pdfs(force_reprocess=True)
-                    st.success("Analysis updated!")
+        if st.button("🧠 Analyze PYQs", use_container_width=True):
+            with st.spinner("Loading analysis..."):
+                # force_reprocess defaults to False, so it loads JSON if available
+                result = process_pyq_pdfs() 
+                
+                if isinstance(result, str): # Handle error strings
+                    if result == "FOLDER_MISSING":
+                        st.error("❌ Folder 'pyq_pdfs' not found!")
+                    elif result == "NO_FILES":
+                        st.error("❌ No PDFs found in 'pyq_pdfs' folder.")
+                else:
+                    st.success(f"✅ Loaded {sum(len(v) for v in result.values())} questions.")
                     # UPDATED: Use dbms_ prefix
-                    st.session_state.dbms_show_pyq_results = True
+                    st.session_state.dbms_show_pyq_results = True 
                     st.rerun()
         
         st.markdown("----")
