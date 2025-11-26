@@ -16,10 +16,6 @@ from langchain_community.utilities import GoogleSearchAPIWrapper
 from langchain_core.documents import Document
 from dotenv import load_dotenv
 
-# pdf loader
-import pytesseract
-from pdf2image import convert_from_path
-
 # libraries for generating pdfs
 import io
 import json
@@ -32,7 +28,6 @@ from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer, KeepTogethe
 from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
 
 import json
-from thefuzz import fuzz # For matching similar questions
 
 def chat_model():
     llm = HuggingFaceEndpoint(
@@ -128,118 +123,6 @@ def web_search_fallback(query: str) -> str:
     except Exception as e:
         return f"An error occurred during web search fallback: {str(e)}"
     
-def extract_and_save_text_from_pdf(pdf_path, cache_path, max_pages=None):
-    """
-    Extract text from image-based PDF using OCR and cache it.
-    Returns list of documents (one per page).
-    """
-    # Check if cached extraction exists
-    if os.path.exists(cache_path):
-        st.info(f"📂 Loading cached OCR text from: {cache_path}")
-        try:
-            with open(cache_path, 'r', encoding='utf-8') as f:
-                cached_data = json.load(f)
-                st.success(f"✅ Loaded {len(cached_data)} pages from cache")
-                return [Document(page_content=page['content'], metadata=page['metadata']) 
-                        for page in cached_data]
-        except Exception as e:
-            st.warning(f"⚠️ Could not load cache: {str(e)}. Re-extracting...")
-    
-    # Perform OCR extraction
-    if not os.path.exists(pdf_path):
-        raise FileNotFoundError(f"PDF file not found: {pdf_path}")
-    
-    st.info(f"🔍 Converting PDF to images: {pdf_path}")
-    
-    try:
-        # Convert PDF to images
-        pages = convert_from_path(pdf_path, dpi=250, fmt='jpeg')
-    except Exception as e:
-        st.error(f"❌ Failed to convert PDF: {str(e)}")
-        return []
-    
-    total_pages = len(pages)
-    if max_pages:
-        total_pages = min(total_pages, max_pages)
-        pages = pages[:max_pages]
-        st.warning(f"⚠️ Processing only first {max_pages} pages (test mode)")
-    
-    st.info(f"📄 Extracting text from {total_pages} pages with OCR...")
-    
-    # Simplified Tesseract configuration
-    custom_config = r'--oem 3 --psm 6'
-    
-    progress_bar = st.progress(0)
-    status_text = st.empty()
-    
-    documents = []
-    page_data_for_cache = []
-    
-    for i, page in enumerate(pages):
-        try:
-            # Update progress
-            progress = (i + 1) / total_pages
-            progress_bar.progress(progress)
-            status_text.text(f"🔄 Processing page {i+1}/{total_pages}...")
-            
-            # Extract text with timeout
-            page_text = pytesseract.image_to_string(
-                page, 
-                lang='eng',
-                config=custom_config,
-                timeout=30
-            )
-            
-            # Clean the extracted text
-            page_text = clean_text(page_text)
-            
-            # Only add non-empty pages
-            if page_text.strip():
-                metadata = {
-                    "source": pdf_path,
-                    "page": i + 1
-                }
-                
-                # Create document for this page
-                documents.append(Document(
-                    page_content=page_text,
-                    metadata=metadata
-                ))
-                
-                # Store for cache
-                page_data_for_cache.append({
-                    'content': page_text,
-                    'metadata': metadata
-                })
-                
-                # Log progress without printing full text
-                word_count = len(page_text.split())
-                st.write(f"  ✓ Page {i+1}: Extracted {word_count} words")
-            else:
-                st.write(f"  ⊘ Page {i+1}: No text found (skipped)")
-            
-        except Exception as page_error:
-            st.warning(f"⚠️ Error on page {i+1}: {str(page_error)}. Skipping...")
-            continue
-    
-    progress_bar.empty()
-    status_text.empty()
-    
-    # Save to cache
-    if documents:
-        try:
-            os.makedirs(os.path.dirname(cache_path), exist_ok=True)
-            with open(cache_path, 'w', encoding='utf-8') as f:
-                json.dump(page_data_for_cache, f, ensure_ascii=False, indent=2)
-            st.success(f"💾 Cached OCR results to: {cache_path}")
-            st.success(f"✅ Successfully extracted text from {len(documents)} pages")
-        except Exception as e:
-            st.warning(f"⚠️ Could not save cache: {str(e)}")
-    else:
-        st.error("❌ No text was extracted from the PDF")
-    
-    return documents
-
 def load_and_create_vectordb(pdf_path='pdfs/wt_tb.pdf', 
                         vectordb_dir='vectordb/wt_faiss',
                         cache_dir='cache',
@@ -263,68 +146,6 @@ def load_and_create_vectordb(pdf_path='pdfs/wt_tb.pdf',
             return vectordb
         except Exception as e:
             st.warning(f"⚠️ Could not load existing database: {str(e)}. Creating new one...")
-
-    # Create a vector database if it doesn't exist
-    st.info("🔨 Creating new vector database...")
-    
-    # Check if PDF exists
-    if not os.path.exists(pdf_path):
-        st.error(f"❌ PDF file not found at: {pdf_path}")
-        st.info("Please ensure your PDF is in the correct location")
-        return None
-    
-    # Set up cache path
-    pdf_name = os.path.splitext(os.path.basename(pdf_path))[0]
-    cache_path = os.path.join(cache_dir, f"{pdf_name}_ocr_cache.json")
-    
-    # Extract text from PDF (with caching)
-    max_pages = 10 if test_mode else None
-    documents = extract_and_save_text_from_pdf(pdf_path, cache_path, max_pages=max_pages)
-    
-    if not documents:
-        st.error("❌ No documents extracted. Cannot create vector database.")
-        return None
-    
-    st.info(f"📊 Total documents (pages): {len(documents)}")
-    
-    # Show preview of first document
-    with st.expander("📄 Preview of first page text (first 500 characters)"):
-        st.text(documents[0].page_content[:500])
-    
-    st.info("✂️ Splitting text into chunks...")
-    
-    # Split documents into chunks
-    splitter = RecursiveCharacterTextSplitter(
-        chunk_size=1200,
-        chunk_overlap=300,
-        separators=["\n\n", "\n", ". ", " ", ""],
-        length_function=len,
-    )
-    
-    try:
-        chunks = splitter.split_documents(documents)
-        st.info(f"📄 Created {len(chunks)} chunks from {len(documents)} pages")
-    except Exception as e:
-        st.error(f"❌ Error splitting documents: {str(e)}")
-        return None
-    
-    # Create vector database
-    st.info("🔮 Creating vector embeddings (this may take a minute)...")
-    try:
-        vectordb = FAISS.from_documents(chunks, embeddings)
-    except Exception as e:
-        st.error(f"❌ Error creating vector database: {str(e)}")
-        return None
-    
-    # Save to disk for future use
-    try:
-        os.makedirs(vectordb_dir, exist_ok=True)
-        vectordb.save_local(vectordb_dir)
-        st.success(f"✅ Vector database created and saved to {vectordb_dir}")
-    except Exception as e:
-        st.warning(f"⚠️ Database created but could not save to disk: {str(e)}")
-    
-    return vectordb
 
 def clean_and_format_pdf_text(text):
     """Clean markdown and special characters, convert to HTML"""
@@ -642,72 +463,8 @@ def process_pyq_pdfs(folder_path=None, force_reprocess=False):
                 return json.load(f)
         except Exception as e:
             st.error(f"Error loading cached JSON: {e}. Reprocessing...")
-            # If loading fails, we allow the code to continue to regeneration
-
-    # --- BELOW IS THE EXISTING PROCESSING LOGIC ---
-    if not os.path.exists(folder_path):
-        return "FOLDER_MISSING"
-
-    pdf_files = [f for f in os.listdir(folder_path) if f.endswith('.pdf')]
-    if not pdf_files:
-        return "NO_FILES"
-
-    # Initialize Data Structure for Units
-    unit_database = {
-        "Unit 3": [],
-        "Unit 4": [],
-        "Unit 5": [],
-        "Unit 6": []
-    }
-
-    for pdf_file in pdf_files:
-        loader = PyPDFLoader(os.path.join(folder_path, pdf_file))
-        pages = loader.load()
-        full_text = " ".join([p.page_content for p in pages])
-        
-        # Get raw lines "1 :: What is SQL"
-        raw_lines = extract_questions_with_numbers(full_text[:3500]) 
-        
-        for line in raw_lines:
-            try:
-                # Split "1 :: Text" into "1" and "Text"
-                q_num_str, q_text = line.split("::", 1)
-                q_text = q_text.strip()
-                
-                # Determine Unit
-                unit_name = get_unit_from_question_number(q_num_str)
-                
-                # Only process if it belongs to Units 3-6
-                if unit_name and unit_name in unit_database:
-                    
-                    # --- FUZZY MATCHING INSIDE THE SPECIFIC UNIT ---
-                    found = False
-                    for existing in unit_database[unit_name]:
-                        similarity = fuzz.token_sort_ratio(q_text.lower(), existing['question'].lower())
-                        if similarity > 85:
-                            existing['count'] += 1
-                            # Keep the longer description
-                            if len(q_text) > len(existing['question']):
-                                existing['question'] = q_text
-                            found = True
-                            break
-                    
-                    if not found:
-                        unit_database[unit_name].append({'question': q_text, 'count': 1})
-                        
-            except ValueError:
-                continue # Skip lines that don't match format
-
-    # Sort questions inside each unit by count
-    for unit in unit_database:
-        unit_database[unit].sort(key=lambda x: x['count'], reverse=True)
-
-    # Save
-    os.makedirs(os.path.dirname(output_file), exist_ok=True) # Ensure directory exists
-    with open(output_file, 'w') as f:
-        json.dump(unit_database, f)
-        
-    return unit_database
+            return {}
+    return {}
 
 def main():
     load_dotenv()
