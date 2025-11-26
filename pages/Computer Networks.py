@@ -15,10 +15,6 @@ from langchain_community.vectorstores import FAISS
 from langchain_community.utilities import GoogleSearchAPIWrapper
 from dotenv import load_dotenv
 
-# pdf loader
-import pytesseract
-from pdf2image import convert_from_path
-
 # libraries for generating pdfs
 import io
 import re
@@ -31,7 +27,7 @@ from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer, KeepTogethe
 from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
 
 import json
-from thefuzz import fuzz # For matching similar questions
+
 
 def chat_model():
     llm = HuggingFaceEndpoint(
@@ -108,32 +104,6 @@ def web_search_fallback(query: str) -> str:
     except Exception as e:
         return f"An error occurred during web search fallback: {str(e)}"
     
-def extract_text_from_image_pdf(pdf_path):
-    """Extract text from image-based PDF using OCR"""
-    try:
-        if not os.path.exists(pdf_path):
-            raise FileNotFoundError(f"PDF file not found: {pdf_path}")
-        
-        st.info(f"🔍 Performing OCR on PDF: {pdf_path}")
-        pages = convert_from_path(pdf_path, dpi=300)  # Higher DPI for better OCR
-        text = ""
-
-        for i, page in enumerate(pages):
-            n = len(pages)
-
-            st.write(f"Processing page {i+1}/{len(pages)}...")
-            page_text = pytesseract.image_to_string(page, lang='eng')
-            
-            # Clean the extracted text
-            page_text = clean_text(page_text)
-            text += page_text + "\n\n"
-
-        st.success(f"✅ Extracted text from {len(pages)} pages")
-        return text
-    
-    except Exception as e:
-        st.error(f"❌ Error during OCR extraction: {str(e)}")
-        return ""
 
 def load_and_create_vectordb(pdf_path='pdfs/cn_tb.pdf', vectordb_dir='vectordb/cn_faiss'):
     """
@@ -155,39 +125,6 @@ def load_and_create_vectordb(pdf_path='pdfs/cn_tb.pdf', vectordb_dir='vectordb/c
         except Exception as e:
             st.warning(f"⚠️ Could not load existing database: {str(e)}. Creating new one...")
 
-    # Create a vector database if it doesn't exist
-    st.info("🔨 Creating new vector database (this may take a moment)...")
-    
-    # Extract text from PDF
-    extracted_text = extract_text_from_image_pdf(pdf_path)
-    
-    if not extracted_text:
-        st.error("❌ No text extracted from PDF. Cannot create vector database.")
-        return None
-    
-    # Create Document objects from the extracted text
-    from langchain_core.documents import Document
-    docs = [Document(page_content=extracted_text, metadata={"source": pdf_path})]
-    
-    # Split into chunks
-    splitter = RecursiveCharacterTextSplitter(
-        chunk_size=1000,
-        chunk_overlap=250,
-        separators=["\n\n", "\n", ". ", " ", ""]
-    )
-    chunks = splitter.split_documents(docs)
-    
-    st.info(f"📄 Created {len(chunks)} chunks from the document")
-    
-    # Create vector database
-    vectordb = FAISS.from_documents(chunks, embeddings)
-    
-    # Save to disk for future use
-    os.makedirs(vectordb_dir, exist_ok=True)
-    vectordb.save_local(vectordb_dir)
-    st.success(f"✅ Vector database created and saved to {vectordb_dir}")
-    
-    return vectordb
 
 def clean_and_format_pdf_text(text):
     """Clean markdown and special characters, convert to HTML"""
@@ -490,14 +427,9 @@ def clean_pyq_text(text):
     return text.strip()
 
 def process_pyq_pdfs(folder_path=None, force_reprocess=False):
-    # --- PATH SETUP ---
-    if folder_path is None:
-        base_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-        folder_path = os.path.join(base_dir, 'pyq_pdfs', 'cn')
         
     output_file = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "PYQs/pyqs_master_cn.json")
 
-    # --- NEW LOGIC: CHECK IF JSON EXISTS ---
     if os.path.exists(output_file) and not force_reprocess:
         # st.info(f"📂 Loading cached PYQ analysis from {output_file}...") # Optional debug print
         try:
@@ -505,71 +437,8 @@ def process_pyq_pdfs(folder_path=None, force_reprocess=False):
                 return json.load(f)
         except Exception as e:
             st.error(f"Error loading cached JSON: {e}. Reprocessing...")
-            # If loading fails, we allow the code to continue to regeneration
-
-    # --- BELOW IS THE EXISTING PROCESSING LOGIC ---
-    if not os.path.exists(folder_path):
-        return "FOLDER_MISSING"
-
-    pdf_files = [f for f in os.listdir(folder_path) if f.endswith('.pdf')]
-    if not pdf_files:
-        return "NO_FILES"
-
-    # Initialize Data Structure for Units
-    unit_database = {
-        "Unit 3": [],
-        "Unit 4": [],
-        "Unit 5": [],
-        "Unit 6": []
-    }
-
-    for pdf_file in pdf_files:
-        loader = PyPDFLoader(os.path.join(folder_path, pdf_file))
-        pages = loader.load()
-        full_text = " ".join([p.page_content for p in pages])
-        
-        # Get raw lines "1 :: What is SQL"
-        raw_lines = extract_questions_with_numbers(full_text[:3500]) 
-        
-        for line in raw_lines:
-            try:
-                # Split "1 :: Text" into "1" and "Text"
-                q_num_str, q_text = line.split("::", 1)
-                q_text = q_text.strip()
-                
-                # Determine Unit
-                unit_name = get_unit_from_question_number(q_num_str)
-                
-                # Only process if it belongs to Units 3-6
-                if unit_name and unit_name in unit_database:
-                    
-                    found = False
-                    for existing in unit_database[unit_name]:
-                        similarity = fuzz.token_sort_ratio(q_text.lower(), existing['question'].lower())
-                        if similarity > 85:
-                            existing['count'] += 1
-                            # Keep the longer description
-                            if len(q_text) > len(existing['question']):
-                                existing['question'] = q_text
-                            found = True
-                            break
-                    
-                    if not found:
-                        unit_database[unit_name].append({'question': q_text, 'count': 1})
-                        
-            except ValueError:
-                continue # Skip lines that don't match format
-
-    # Sort questions inside each unit by count
-    for unit in unit_database:
-        unit_database[unit].sort(key=lambda x: x['count'], reverse=True)
-
-    # Save
-    os.makedirs(os.path.dirname(output_file), exist_ok=True) # Ensure directory exists
-    with open(output_file, 'w') as f:
-        json.dump(unit_database, f)
-        
-    return unit_database
+            return {}
+    return {}
 
 def main():
     load_dotenv()
