@@ -7,6 +7,7 @@ langchain-core
 langchain-community
 langchain-experimental
 langchain-huggingface
+google-api-python-client>=2.100.0
 
 # HuggingFace + Transformers
 transformers

@@ -30,7 +30,7 @@ import json
 
 def chat_model():
     llm = HuggingFaceEndpoint(
-        repo_id='openai/gpt-oss-20b',
+        repo_id='Qwen/Qwen2.5-7B-Instruct',
         task='text-generation',
         temperature=0.8,
         max_new_tokens=512
