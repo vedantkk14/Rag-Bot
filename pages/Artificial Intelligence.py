@@ -26,7 +26,7 @@ import json
 
 def chat_model():
     llm = HuggingFaceEndpoint(
-        repo_id='Qwen/Qwen2.5-7B-Instruct', 
+        repo_id='tiiuae/falcon-7b-instruct', 
         task='text-generation',
         temperature=0.8
     )
@@ -547,7 +547,7 @@ def main():
             )
 
             prompt = ChatPromptTemplate.from_messages([
-                ("system", """You are an expert AI assistant who has mastered Database Management Systems (AI).
+                ("system", """You are an expert AI assistant who has mastered Artificial Intelligence(AI) core concepts.
 Answer the question using the context extracted from the AI textbook and the previous conversation.
 
 Guidelines for your response:
