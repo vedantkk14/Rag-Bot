@@ -25,6 +25,8 @@ pypdf
 # Web scraping / HTML parsing
 beautifulsoup4
 requests
+reportlab==3.6.12
+
 
 # Utilities
 numpy
