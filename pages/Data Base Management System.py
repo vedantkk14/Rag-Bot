@@ -29,11 +29,11 @@ import json
 
 
 def chat_model():
+    repo_id = 'meta-llama/Meta-Llama-3.1-8B-Instruct'
     llm = HuggingFaceEndpoint(
-        repo_id='Qwen/Qwen2.5-7B-Instruct',
+        repo_id=repo_id,
         task='text-generation',
-        temperature=0.8,
-        max_new_tokens=512
+        temperature=0.6,
     )
     return ChatHuggingFace(llm=llm)
 

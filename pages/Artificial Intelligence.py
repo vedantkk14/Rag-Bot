@@ -25,10 +25,11 @@ import io
 import json
 
 def chat_model():
+    repo_id = 'meta-llama/Meta-Llama-3.1-8B-Instruct'
     llm = HuggingFaceEndpoint(
-        repo_id='deepseek-ai/DeepSeek-R1-Distill-Qwen-7B', 
+        repo_id=repo_id, 
         task='text-generation',
-        temperature=0.8
+        temperature=0.6
     )
     return ChatHuggingFace(llm=llm)
 

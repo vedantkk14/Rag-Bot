@@ -23,7 +23,7 @@ import io
 # LLM Model (HuggingFace Endpoint)
 def chat_model():
     llm = HuggingFaceEndpoint(
-        repo_id="Qwen/Qwen2.5-7B-Instruct",
+        repo_id="meta-llama/Meta-Llama-3.1-8B-Instruct",
         task="text-generation",
         temperature=0.8,
         max_new_tokens=512

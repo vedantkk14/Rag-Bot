@@ -30,10 +30,11 @@ from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
 import json
 
 def chat_model():
+    repo_id = 'meta-llama/Meta-Llama-3.1-8B-Instruct'
     llm = HuggingFaceEndpoint(
-        repo_id='Qwen/Qwen2.5-7B-Instruct',
+        repo_id=repo_id,
         task='text-generation', 
-        temperature=0.7
+        temperature=0.6
     )
     return ChatHuggingFace(llm=llm)
 
