@@ -253,40 +253,48 @@ def generate_quiz_from_history(chat_history):
     if not chat_history:
         return None
 
-    # Convert list of messages to a single string for the prompt
-    history_text = "\n".join([f"{msg.type}: {msg.content}" for msg in chat_history])
+    # Convert LangChain messages properly
+    history_text = ""
+    for msg in chat_history:
+        if isinstance(msg, HumanMessage):
+            history_text += f"User: {msg.content}\n"
+        elif isinstance(msg, AIMessage):
+            history_text += f"Assistant: {msg.content}\n"
+
+    if not history_text.strip():
+        return None
 
     llm = chat_model()
 
-    # Strict prompt to ensure consistent formatting for parsing
-    quiz_prompt = f"""
-    You are a teacher. Based strictly on the following conversation history about AI, generate 5 multiple-choice questions (MCQs) to test the user's understanding of the topics discussed.
-    
-    Conversation History:
-    {history_text}
+    quiz_prompt = f"""Generate exactly 5 multiple-choice questions based on this AI conversation.
 
-    Rules:
-    1. Generate exactly 5 questions.
-    2. Provide 4 options (A, B, C, D) for each question.
-    3. Indicate the correct answer clearly at the end of each question block.
-    4. Do not include any introductory or concluding text. Use the exact format below.
+Conversation:
+{history_text}
 
-    Format Example:
-    Q1: What is normalization?
-    A) Process of removing data
-    B) Process of organizing data
-    C) Process of deleting tables
-    D) None of the above
-    Answer: B
-    
-    Q2: ...
-    """
+Format each question EXACTLY like this:
+
+Q1: What is machine learning?
+A) A type of hardware
+B) A way for computers to learn from data
+C) A programming language
+D) An operating system
+Answer: B
+
+Generate 5 questions now:"""
     
     try:
         response = llm.invoke(quiz_prompt)
-        return parse_quiz_content(response.content)
+        parsed = parse_quiz_content(response.content)
+        
+        if not parsed:
+            st.warning("Could not parse quiz. Raw response:")
+            st.code(response.content)
+        
+        return parsed
     except Exception as e:
         st.error(f"Error generating quiz: {e}")
+        import traceback
+        st.code(traceback.format_exc())
         return None
 
 def parse_quiz_content(text):
@@ -294,14 +302,17 @@ def parse_quiz_content(text):
     Parses the LLM output text into a structured list of dictionaries.
     """
     questions = []
-    # Split by "Q" followed by a number and a colon/dot
-    blocks = re.split(r'Q\d+[:.]', text)
+    # More flexible pattern
+    blocks = re.split(r'\n(?=Q\d+)', text)
     
     for block in blocks:
         if not block.strip():
             continue
-            
-        lines = [line.strip() for line in block.strip().split('\n') if line.strip()]
+        
+        # Remove the Q number prefix
+        block = re.sub(r'^Q\d+[:.\)]\s*', '', block.strip())
+        
+        lines = [line.strip() for line in block.split('\n') if line.strip()]
         if len(lines) < 5:
             continue
             
@@ -310,10 +321,14 @@ def parse_quiz_content(text):
         correct_answer = None
         
         for line in lines[1:]:
-            if line.upper().startswith(('A)', 'B)', 'C)', 'D)')):
+            # More flexible option matching
+            if re.match(r'^[A-D][\):\.]', line, re.IGNORECASE):
                 options.append(line)
-            elif line.upper().startswith('ANSWER:'):
-                correct_answer = line.split(':')[-1].strip().upper()
+            elif 'answer' in line.lower():
+                # Extract just the letter
+                match = re.search(r'[A-D]', line, re.IGNORECASE)
+                if match:
+                    correct_answer = match.group(0).upper()
         
         if question_text and len(options) >= 4 and correct_answer:
             questions.append({
