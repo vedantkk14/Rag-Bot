@@ -359,8 +359,10 @@ def main():
                 with st.spinner("👩‍🏫 Analyzing conversation and crafting questions..."):
                     quiz = generate_quiz_from_history(st.session_state.ai_chat_history[-10:])
                     if quiz:
-                        st.session_state.quiz_data = quiz
+                        st.session_state.ai_quiz_data = quiz
                         st.success("✅ Quiz generated! Scroll down to take it.")
+
+                        st.rerun()
                     else:
                         st.error("❌ Failed to generate valid questions. Try again.")
         
