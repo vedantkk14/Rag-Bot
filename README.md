@@ -1,270 +1,460 @@
-<<<<<<< HEAD
-🌟 UniMate AI
-Your Intelligent Academic Companion — Chat, Analyze PDFs, Generate Quizzes & More
-<p align="center"> <img src="https://img.shields.io/badge/Python-3.10%2B-blue" /> <img src="https://img.shields.io/badge/AI-Powered-yellow" /> <img src="https://img.shields.io/badge/FAISS-Vector%20Search-blueviolet" /> <img src="https://img.shields.io/badge/HuggingFace-Models-orange" /> <img src="https://img.shields.io/badge/License-MIT-green" /> </p>
-🎯 What is UniMate AI?
+<div align="center">
 
-UniMate AI is a smart, AI-powered academic assistant designed to enhance student productivity and learning.
-It helps users:
+# 🎓 UniMate AI - Your AI-Powered Study Companion
 
-Ask general questions
+![Python](https://img.shields.io/badge/Python-3.8%2B-blue.svg)
+![Streamlit](https://img.shields.io/badge/Streamlit-1.28%2B-FF4B4B.svg)
+![LangChain](https://img.shields.io/badge/LangChain-0.1%2B-green.svg)
 
-Analyze & extract information from PDFs
+### *A Retrieval-Augmented Generation (RAG) chatbot designed to help engineering students study smarter, not harder.*
 
-Use retrieval-based answering (RAG)
-
-Perform web-assisted searches
-
-Generate quizzes from conversation history
-
-Export full conversations as beautifully formatted PDFs
-
-Chat naturally with context-aware memory
-
-Whether you're studying, researching, or revising — UniMate AI acts as your personal academic companion.
-
-🚀 Features Overview
-🔍 1. Intelligent PDF Question Answering (RAG)
-
-Upload any PDF and ask contextual questions about its content.
-The system automatically:
-
-Extracts & cleans text from the PDF
-
-Splits it into manageable chunks
-
-Embeds using HuggingFace sentence-transformers
-
-Stores vectors using FAISS
-
-Retrieves relevant sections to answer your queries
-
-✨ Perfect for textbooks, notes, assignments & academic papers.
-
-💬 2. Contextual Conversational AI
-
-Ask anything — UniMate AI provides:
-
-Friendly and natural responses
-
-Structured, concise explanations
-
-Memory-aware conversation flow
-
-Domain knowledge via LLMs
-
-✨ Designed to feel like a personal tutor.
-
-🌐 3. Smart Web Search Fallback
-
-If the model doesn't know something:
-
-Google Custom Search API is triggered
-
-Relevant results are summarized
-
-AI blends results into a clean, structured answer
-
-✨ Ensures accurate and up-to-date responses.
-
-📝 4. Automated Quiz Generator
-
-From your recent chat:
-
-Generates 5 MCQs
-
-Includes 4 options each
-
-Returns correct answers
-
-Great for quick revision
-
-✨ Convert learning into active practice instantly.
-
-📄 5. Export Chat as PDF
-
-Download the entire conversation:
-
-Styled layout
-
-Timestamps
-
-Clean formatting using ReportLab
-
-User vs Assistant message design
-
-✨ Useful for revision, sharing, or saving study notes.
-
-🎨 6. Clean and User-Friendly Interface
-
-Sidebar tools
-
-PDF upload panel
-
-Chat layout with colored message bubbles
-
-Quiz section
-
-Helpful utilities such as clearing chat or exporting
-
-✨ Optimized for simplicity and smooth experience.
-
-🧠 Tech Stack
-AI & NLP
-
-LangChain (chains, prompts, runnables)
-
-HuggingFace Inference Models
-
-sentence-transformers embeddings
-
-Vector Search
-
-FAISS (efficient similarity search)
-
-Document Processing
-
-pypdf for PDF text extraction
-
-ReportLab for generating PDF exports
-
-APIs
-
-Google Custom Search API for reliable fallback answers
-
-HuggingFace Hub for LLMs & embeddings
-
-Environment Management
-
-dotenv
-
-Python 3.10+
-
-📂 Folder Structure
-/
-├── Home.py                    # Main application script
-├── pages/                     # Optional additional pages
-├── vectordb/                  # Vector database files (if stored locally)
-├── requirements.txt           # Project dependencies
-├── runtime.txt                # Python version pin (e.g., python-3.10.13)
-├── .env.example               # Template for environment variables
-└── README.md                  # Project documentation
-
-🔧 Installation Guide
-1️⃣ Clone the repository
-git clone <repo-url>
-cd <project-folder>
-
-2️⃣ Create a virtual environment (recommended)
-python -m venv venv
-source venv/bin/activate  # Mac/Linux
-venv\Scripts\activate     # Windows
-
-3️⃣ Install dependencies
-pip install -r requirements.txt
-
-4️⃣ Add environment variables
-
-Create a .env file:
-
-HUGGINGFACEHUB_API_TOKEN=your_token_here
-GOOGLE_API_KEY=your_google_key
-GOOGLE_CSE_ID=your_search_engine_id
-
-▶️ How to Run
-python Home.py
-
-
-Then open the provided local URL in your browser.
-
-📝 Usage Guide
-📥 Upload a PDF
-
-Load any academic or informational PDF.
-
-❓ Ask Questions
-
-Use natural language to ask questions about:
-
-The PDF
-
-General knowledge
-
-Academic concepts
-
-🔎 View AI Responses
-
-Responses are:
-
-Friendly
-
-Structured
-
-Context-aware
-
-🎯 Generate Quizzes
-
-Convert your recent conversation into multiple-choice questions.
-
-📄 Export Conversation
-
-Download a PDF summary of your entire session.
-
-🧩 Troubleshooting
-❗ Missing Embeddings / FAISS Errors
-
-Ensure sentence-transformers & FAISS are installed correctly.
-
-❗ No PDF Text Extracted
-
-The PDF may contain only images; ensure it's text-based.
-
-❗ Web Search Not Working
-
-Double-check:
-
-GOOGLE_API_KEY
-GOOGLE_CSE_ID
-
-❗ LLM Not Responding
-
-Ensure your:
-
-HUGGINGFACEHUB_API_TOKEN
-
-
-is valid and active.
-
-🌱 Roadmap
-
- Multi-PDF processing
-
- Conversation bookmarking
-
- Document summarization mode
-
- Themed UI (light/dark/custom themes)
-
- Multi-language support
-
- Integration with online storage for PDFs
-=======
-
-# 💻 Tech Stack:
-![C](https://img.shields.io/badge/c-%2300599C.svg?style=for-the-badge&logo=c&logoColor=white) ![C++](https://img.shields.io/badge/c++-%2300599C.svg?style=for-the-badge&logo=c%2B%2B&logoColor=white) ![HTML5](https://img.shields.io/badge/html5-%23E34F26.svg?style=for-the-badge&logo=html5&logoColor=white) ![JavaScript](https://img.shields.io/badge/javascript-%23323330.svg?style=for-the-badge&logo=javascript&logoColor=%23F7DF1E) ![Anaconda](https://img.shields.io/badge/Anaconda-%2344A833.svg?style=for-the-badge&logo=anaconda&logoColor=white) ![Keras](https://img.shields.io/badge/Keras-%23D00000.svg?style=for-the-badge&logo=Keras&logoColor=white) ![Matplotlib](https://img.shields.io/badge/Matplotlib-%23ffffff.svg?style=for-the-badge&logo=Matplotlib&logoColor=black) ![mlflow](https://img.shields.io/badge/mlflow-%23d9ead3.svg?style=for-the-badge&logo=numpy&logoColor=blue) ![NumPy](https://img.shields.io/badge/numpy-%23013243.svg?style=for-the-badge&logo=numpy&logoColor=white) ![Pandas](https://img.shields.io/badge/pandas-%23150458.svg?style=for-the-badge&logo=pandas&logoColor=white) ![Plotly](https://img.shields.io/badge/Plotly-%233F4F75.svg?style=for-the-badge&logo=plotly&logoColor=white) ![PyTorch](https://img.shields.io/badge/PyTorch-%23EE4C2C.svg?style=for-the-badge&logo=PyTorch&logoColor=white) ![scikit-learn](https://img.shields.io/badge/scikit--learn-%23F7931E.svg?style=for-the-badge&logo=scikit-learn&logoColor=white) ![Scipy](https://img.shields.io/badge/SciPy-%230C55A5.svg?style=for-the-badge&logo=scipy&logoColor=%white) ![TensorFlow](https://img.shields.io/badge/TensorFlow-%23FF6F00.svg?style=for-the-badge&logo=TensorFlow&logoColor=white) ![MySQL](https://img.shields.io/badge/mysql-4479A1.svg?style=for-the-badge&logo=mysql&logoColor=white) ![Python](https://img.shields.io/badge/python-3670A0?style=for-the-badge&logo=python&logoColor=ffdd54) ![Windows Terminal](https://img.shields.io/badge/Windows%20Terminal-%234D4D4D.svg?style=for-the-badge&logo=windows-terminal&logoColor=white)
-# 📊 GitHub Stats:
-![](https://github-readme-stats.vercel.app/api?username=vedantkk14&theme=dark&hide_border=false&include_all_commits=false&count_private=false)<br/>
-![](https://nirzak-streak-stats.vercel.app/?user=vedantkk14&theme=dark&hide_border=false)<br/>
-![](https://github-readme-stats.vercel.app/api/top-langs/?username=vedantkk14&theme=dark&hide_border=false&include_all_commits=false&count_private=false&layout=compact)
-
-## 🏆 GitHub Trophies
-![](https://github-profile-trophy.vercel.app/?username=vedantkk14&theme=radical&no-frame=false&no-bg=true&margin-w=4)
-
-### ✍️ Random Dev Quote
-![](https://quotes-github-readme.vercel.app/api?type=horizontal&theme=radical)
+</div>
 
 ---
-[![](https://visitcount.itsvg.in/api?id=vedantkk14&icon=0&color=0)](https://visitcount.itsvg.in)
 
-<!-- Proudly created with GPRM ( https://gprm.itsvg.in ) -->
->>>>>>> a9b1a95 (some changes)
+## 🚀 Overview
+
+<table>
+<tr>
+<td width="50%">
+
+### The Problem 😰
+Engineering students often find themselves cramming the night before exams, struggling to navigate dense textbooks and scattered resources.
+
+</td>
+<td width="50%">
+
+### The Solution ✨
+UniMate AI combines the power of Large Language Models with course-specific knowledge bases to provide instant, accurate answers with intelligent fallback mechanisms.
+
+</td>
+</tr>
+</table>
+
+---
+
+## ✨ Key Features
+
+<table>
+<tr>
+<td width="50%" valign="top">
+
+### 📚 Multi-Subject Support
+<ul>
+<li><b>6 Pages Total:</b> 1 General Chatbot + 5 Subject-Specific Pages</li>
+<li><b>Pre-loaded subjects:</b> AI, DBMS, HCI, WT, CN</li>
+<li>Upload your own PDFs for custom RAG sessions</li>
+</ul>
+
+### 🧠 Smart RAG Pipeline
+<ul>
+<li>Vector embeddings stored in FAISS database</li>
+<li>Semantic similarity search for accurate retrieval</li>
+<li>Context-aware responses using LangChain</li>
+<li>Conversation memory throughout the session</li>
+</ul>
+
+### 🌐 Intelligent Fallback
+<ul>
+<li>Automatic Google Search API integration</li>
+<li>No more "I don't know" responses</li>
+<li>Seamless transition between knowledge base and web search</li>
+</ul>
+
+</td>
+<td width="50%" valign="top">
+
+### 📝 Interactive Learning Tools
+<ul>
+<li><b>Auto-Generated Quizzes:</b> Creates MCQs based on your conversation history</li>
+<li><b>PYQ Analysis:</b> Extracts and analyzes Previous Year Questions with frequency tracking</li>
+<li><b>PDF Export:</b> Download entire chat sessions as formatted study notes</li>
+</ul>
+
+### 🎯 User-Friendly Interface
+<ul>
+<li>Clean, intuitive Streamlit UI</li>
+<li>Real-time chat bubbles</li>
+<li>Sidebar controls for quick actions</li>
+<li>Mobile-responsive design</li>
+</ul>
+
+</td>
+</tr>
+</table>
+
+---
+
+## 🛠️ Tech Stack
+
+<div align="center">
+
+<table>
+<thead>
+<tr>
+<th>Component</th>
+<th>Technology</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><b>Framework</b></td>
+<td>Streamlit</td>
+</tr>
+<tr>
+<td><b>LLM</b></td>
+<td>Meta Llama 3.1 (via HuggingFace)</td>
+</tr>
+<tr>
+<td><b>Orchestration</b></td>
+<td>LangChain</td>
+</tr>
+<tr>
+<td><b>Embeddings</b></td>
+<td>sentence-transformers/all-MiniLM-L6-v2</td>
+</tr>
+<tr>
+<td><b>Vector DB</b></td>
+<td>FAISS</td>
+</tr>
+<tr>
+<td><b>Search API</b></td>
+<td>Google Search API</td>
+</tr>
+<tr>
+<td><b>PDF Processing</b></td>
+<td>PyPDF, ReportLab</td>
+</tr>
+<tr>
+<td><b>Language</b></td>
+<td>Python 3.8+</td>
+</tr>
+</tbody>
+</table>
+
+</div>
+
+---
+
+## 📦 Installation
+
+<details>
+<summary><b>📋 Prerequisites</b></summary>
+<br>
+
+- Python 3.8 or higher
+- pip package manager
+- HuggingFace API token
+- Google Search API key
+
+</details>
+
+<details open>
+<summary><b>🚀 Quick Start Guide</b></summary>
+<br>
+
+### Step 1: Clone the Repository
+```bash
+git clone https://github.com/yourusername/unimate-ai.git
+cd unimate-ai
+```
+
+### Step 2: Create Virtual Environment
+```bash
+python -m venv venv
+
+# On Windows
+venv\Scripts\activate
+
+# On macOS/Linux
+source venv/bin/activate
+```
+
+### Step 3: Install Dependencies
+```bash
+pip install -r requirements.txt
+```
+
+### Step 4: Set Up Environment Variables
+Create a `.env` file in the root directory:
+```env
+HUGGINGFACEHUB_API_TOKEN=your_huggingface_token_here
+GOOGLE_API_KEY=your_google_api_key_here
+GOOGLE_CSE_ID=your_custom_search_engine_id_here
+```
+
+### Step 5: Prepare Your Data
+Place your subject PDF files in the `pdfs/` directory:
+```
+pdfs/
+├── ai_tb.pdf
+├── dbms_tb.pdf
+├── hci_tb.pdf
+├── wt_tb.pdf
+└── cn_tb.pdf
+```
+
+### Step 6: Run the Application
+```bash
+streamlit run Home.py
+```
+
+<div align="center">
+<b>🎉 The app will open in your browser at <code>http://localhost:8501</code></b>
+</div>
+
+</details>
+
+---
+
+## 📂 Project Structure
+
+<details>
+<summary><b>📁 Click to expand file structure</b></summary>
+
+```
+unimate-ai/
+│
+├── Home.py                 # Main landing page with general chatbot
+├── pages/
+│   ├── AI.py              # Artificial Intelligence subject page
+│   ├── DBMS.py            # Database Management Systems page
+│   ├── HCI.py             # Human-Computer Interaction page
+│   ├── WT.py              # Web Technologies page
+│   └── CN.py              # Computer Networks page
+│
+├── pdfs/                  # Textbook PDFs for each subject
+│   ├── ai_tb.pdf
+│   ├── dbms_tb.pdf
+│   └── ...
+│
+├── pyq_pdfs/              # Previous Year Question papers
+│   ├── ai/
+│   ├── dbms/
+│   └── ...
+│
+├── PYQs/                  # Processed PYQ JSON files
+│   └── pyqs_master_ai.json
+│
+├── vectordb/              # FAISS vector databases
+│   ├── ai_faiss/
+│   ├── dbms_faiss/
+│   └── ...
+│
+├── .env                   # Environment variables (not in repo)
+├── requirements.txt       # Python dependencies
+├── README.md             # This file
+└── LICENSE               # MIT License
+```
+
+</details>
+
+---
+
+## 🎯 How It Works
+
+<div align="center">
+
+### 🔄 RAG Pipeline Architecture
+
+</div>
+
+<table>
+<tr>
+<td width="25%" align="center">
+<h4>1️⃣ Document Processing</h4>
+<ul align="left">
+<li>Load PDFs</li>
+<li>Split into chunks</li>
+<li>Generate embeddings</li>
+<li>Store in FAISS</li>
+</ul>
+</td>
+<td width="25%" align="center">
+<h4>2️⃣ Query Processing</h4>
+<ul align="left">
+<li>User asks question</li>
+<li>Convert to embedding</li>
+<li>Similarity search</li>
+<li>Retrieve top-k docs</li>
+</ul>
+</td>
+<td width="25%" align="center">
+<h4>3️⃣ Response Generation</h4>
+<ul align="left">
+<li>Combine context</li>
+<li>Add chat history</li>
+<li>Send to LLM</li>
+<li>Generate answer</li>
+</ul>
+</td>
+<td width="25%" align="center">
+<h4>4️⃣ Fallback</h4>
+<ul align="left">
+<li>Check confidence</li>
+<li>Trigger web search</li>
+<li>Process results</li>
+<li>Return answer</li>
+</ul>
+</td>
+</tr>
+</table>
+
+<div align="center">
+
+```
+User Query → Embedding → Similarity Search → Context Retrieval → LLM → Response
+                                    ↓ (if confidence < threshold)
+                              Google Search → LLM → Response
+```
+
+</div>
+
+---
+
+## 💡 Usage Examples
+
+<table>
+<tr>
+<td width="50%">
+
+### 💬 Basic Chat
+```
+User: "What is normalization in DBMS?"
+
+Bot: [Retrieves from DBMS textbook 
+     and explains with examples]
+```
+
+### 📝 Quiz Generation
+<ol>
+<li>Chat about a topic</li>
+<li>Click "Generate Quiz from Chat"</li>
+<li>Take the auto-generated MCQ quiz</li>
+<li>Get instant feedback and score</li>
+</ol>
+
+</td>
+<td width="50%">
+
+### 📊 PYQ Analysis
+<ol>
+<li>Navigate to subject page</li>
+<li>Click "Analyze PYQ Papers"</li>
+<li>View questions by frequency</li>
+<li>Focus on high-frequency topics</li>
+</ol>
+
+### 📄 PDF Export
+<ol>
+<li>Have a conversation</li>
+<li>Click "Download as PDF"</li>
+<li>Save for offline study</li>
+</ol>
+
+</td>
+</tr>
+</table>
+
+---
+
+## 🔧 Configuration
+
+<details>
+<summary><b>⚙️ Customization Options</b></summary>
+<br>
+
+### Adjusting Chunk Size
+```python
+splitter = RecursiveCharacterTextSplitter(
+    chunk_size=1000,      # Adjust based on your content
+    chunk_overlap=250     # Overlap for context continuity
+)
+```
+
+### Changing LLM Model
+```python
+repo_id = 'meta-llama/Meta-Llama-3.1-8B-Instruct'  # Change to your preferred model
+```
+
+### Adjusting Retrieval Parameters
+```python
+retriever = vectordb.as_retriever(
+    search_type="similarity",
+    search_kwargs={"k": 3}  # Number of documents to retrieve
+)
+```
+
+</details>
+
+---
+
+## 🐛 Troubleshooting
+
+<table>
+<thead>
+<tr>
+<th>Issue</th>
+<th>Solution</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Vector database not loading</td>
+<td>Delete the <code>vectordb/</code> folder and restart the app</td>
+</tr>
+<tr>
+<td>Google Search not working</td>
+<td>Verify your API keys in <code>.env</code> file</td>
+</tr>
+<tr>
+<td>LLM responses are slow</td>
+<td>Use a smaller model or adjust <code>temperature</code> parameter</td>
+</tr>
+<tr>
+<td>Out of memory errors</td>
+<td>Reduce <code>chunk_size</code> or process fewer documents</td>
+</tr>
+</tbody>
+</table>
+
+---
+</div>
+
+<!--
+ ## 📸 Screenshots
+ 
+ <table>
+ <tr>
+ <td width="50%">
+ <h3 align="center">🏠 Home Page</h3>
+ <img src="screenshots/home.png" alt="Home Page"/>
+ </td>
+ <td width="50%">
+ <h3 align="center">💬 Subject Chat</h3>
+ <img src="screenshots/chat.png" alt="Chat Interface"/>
+ </td>
+ </tr>
+ <tr>
+ <td width="50%">
+ <h3 align="center">📝 Quiz Generation</h3> 
+ <img src="screenshots/quiz.png" alt="Quiz Feature"/>
+ </td>
+ <td width="50%">
+ <h3 align="center">📊 PYQ Analysis</h3>
+ <img src="screenshots/pyq.png" alt="PYQ Dashboard"/>
+ </td>
+ </tr>
+ </table>
+-->
+
+<div align="center">
+
+
+**If you found this helpful, please consider giving it a ⭐ on GitHub!**
+
+<br>
+
+[![Star History Chart](https://api.star-history.com/svg?repos=yourusername/unimate-ai&type=Date)](https://star-history.com/#yourusername/unimate-ai&Date)
+
+</div>
