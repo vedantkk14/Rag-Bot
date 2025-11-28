@@ -251,9 +251,10 @@ def generate_quiz_from_history(chat_history):
     Generates a quiz based on the provided chat history.
     """
     if not chat_history:
+        st.error("No chat history available")
         return None
 
-    # Convert LangChain messages properly
+    # FIXED: Proper conversion of LangChain messages
     history_text = ""
     for msg in chat_history:
         if isinstance(msg, HumanMessage):
@@ -262,37 +263,64 @@ def generate_quiz_from_history(chat_history):
             history_text += f"Assistant: {msg.content}\n"
 
     if not history_text.strip():
+        st.error("Chat history is empty")
         return None
 
     llm = chat_model()
+    
+    if llm is None:
+        st.error("Failed to load language model")
+        return None
 
-    quiz_prompt = f"""Generate exactly 5 multiple-choice questions based on this AI conversation.
+    # Simplified, explicit prompt (same as DBMS)
+    quiz_prompt = f"""
+    You are a teacher. Based strictly on the following conversation history about AI, generate 5 multiple-choice questions (MCQs) to test the user's understanding of the topics discussed.
+    
+    Conversation History:
+    {history_text}
 
-Conversation:
-{history_text}
+    Rules:
+    1. Generate exactly 5 questions.
+    2. Provide 4 options (A, B, C, D) for each question.
+    3. Indicate the correct answer clearly at the end of each question block.
+    4. Do not include any introductory or concluding text. Use the exact format below.
 
-Format each question EXACTLY like this:
-
-Q1: What is machine learning?
-A) A type of hardware
-B) A way for computers to learn from data
-C) A programming language
-D) An operating system
-Answer: B
-
-Generate 5 questions now:"""
+    Format Example:
+    Q1: What is normalization?
+    A) Process of removing data
+    B) Process of organizing data
+    C) Process of deleting tables
+    D) None of the above
+    Answer: B
+    
+    Q2: What is supervised learning?
+    A) Learning without labels
+    B) Learning with labeled data
+    C) Reinforcement learning
+    D) Unsupervised clustering
+    Answer: B
+    """
     
     try:
         response = llm.invoke(quiz_prompt)
-        parsed = parse_quiz_content(response.content)
         
-        if not parsed:
-            st.warning("Could not parse quiz. Raw response:")
+        # Debug output (remove after fixing)
+        with st.expander("🔍 Debug: Raw LLM Output", expanded=False):
             st.code(response.content)
         
-        return parsed
+        quiz_questions = parse_quiz_content(response.content)
+        
+        if not quiz_questions:
+            st.error(f"⚠️ Parsing failed. Generated 0 questions from response.")
+            return None
+            
+        if len(quiz_questions) < 3:
+            st.warning(f"⚠️ Only {len(quiz_questions)} questions generated (expected 5)")
+        
+        return quiz_questions
+        
     except Exception as e:
-        st.error(f"Error generating quiz: {e}")
+        st.error(f"Error generating quiz: {str(e)}")
         import traceback
         st.code(traceback.format_exc())
         return None
@@ -302,40 +330,44 @@ def parse_quiz_content(text):
     Parses the LLM output text into a structured list of dictionaries.
     """
     questions = []
-    # More flexible pattern
-    blocks = re.split(r'\n(?=Q\d+)', text)
+    # More flexible split pattern
+    blocks = re.split(r'\n\s*Q\s*\d+\s*[:\.\)]\s*', text, flags=re.IGNORECASE)
+    
+    # Remove empty first element if present
+    blocks = [b for b in blocks if b.strip()]
     
     for block in blocks:
         if not block.strip():
             continue
         
-        # Remove the Q number prefix
-        block = re.sub(r'^Q\d+[:.\)]\s*', '', block.strip())
-        
-        lines = [line.strip() for line in block.split('\n') if line.strip()]
-        if len(lines) < 5:
-            continue
+        try:
+            lines = [line.strip() for line in block.strip().split('\n') if line.strip()]
+            if len(lines) < 5:  # Need question + 4 options + answer
+                continue
+                
+            question_text = lines[0]
+            options = []
+            correct_answer = None
             
-        question_text = lines[0]
-        options = []
-        correct_answer = None
-        
-        for line in lines[1:]:
-            # More flexible option matching
-            if re.match(r'^[A-D][\):\.]', line, re.IGNORECASE):
-                options.append(line)
-            elif 'answer' in line.lower():
-                # Extract just the letter
-                match = re.search(r'[A-D]', line, re.IGNORECASE)
-                if match:
-                    correct_answer = match.group(0).upper()
-        
-        if question_text and len(options) >= 4 and correct_answer:
-            questions.append({
-                "question": question_text,
-                "options": options,
-                "correct": correct_answer
-            })
+            for line in lines[1:]:
+                # Match options with flexible formatting
+                if re.match(r'^[A-D][\)\.\:]\s*', line, re.IGNORECASE):
+                    options.append(line)
+                # Match answer line
+                elif 'answer' in line.lower():
+                    # Extract the letter
+                    match = re.search(r'[A-D]', line, re.IGNORECASE)
+                    if match:
+                        correct_answer = match.group(0).upper()
+            
+            if question_text and len(options) >= 4 and correct_answer:
+                questions.append({
+                    "question": question_text,
+                    "options": options,
+                    "correct": correct_answer
+                })
+        except Exception as e:
+            continue
             
     return questions
 
